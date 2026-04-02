@@ -68,7 +68,7 @@ class TradingEnv(gym.Env):
     def reset(self, *, seed=None, options=None):
         super().reset(seed=seed)
         self._reset_state()
-        return self._get_obs(), {}
+        return self._get_obs()
 
     def step(self, action):
         price = self.df.loc[self.idx, "Close"]
@@ -88,10 +88,9 @@ class TradingEnv(gym.Env):
         self.prev_port = self.portfolio
 
         self.idx += 1
-        terminated = self.idx >= self.n - 1
-        truncated  = False
+        done = self.idx >= self.n - 1
 
-        return self._get_obs(), float(reward), terminated, truncated, {}
+        return self._get_obs(), float(reward), done, {}
 
 
 # ── Train ─────────────────────────────────────────────────────────────────────
