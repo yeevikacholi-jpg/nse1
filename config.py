@@ -7,7 +7,7 @@ Goal: Predict short-term (intraday) price direction for NSE stocks
 Architecture:
   data_collector.py  →  feature_engineer.py  →  visualise.py
        ↓
-  environment.py (Gymnasium)  →  train_model.py
+  environment.py (Gym)  →  train_model.py
        ↓
   backtest.py  →  metrics.py  →  app.py (Flask UI)
 """
