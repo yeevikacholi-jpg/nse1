@@ -9,7 +9,7 @@ import pandas as pd
 import numpy as np
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
-import ta
+import pandas_ta as ta
 from config import CONFIG
 
 
@@ -34,15 +34,15 @@ def add_features(df: pd.DataFrame) -> pd.DataFrame:
     df = df.copy()
 
     # Trend indicators
-    df["sma_10"]  = ta.trend.sma_indicator(df["Close"], window=10)
-    df["sma_30"]  = ta.trend.sma_indicator(df["Close"], window=30)
-    df["ema_12"]  = ta.trend.ema_indicator(df["Close"], window=12)
-    df["ema_26"]  = ta.trend.ema_indicator(df["Close"], window=26)
-    df["macd"]    = ta.trend.macd(df["Close"])
-    df["macd_sig"]= ta.trend.macd_signal(df["Close"])
+    df["sma_10"]  = ta.sma(df["Close"], length=10)
+    df["sma_30"]  = ta.sma(df["Close"], length=30)
+    df["ema_12"]  = ta.ema(df["Close"], length=12)
+    df["ema_26"]  = ta.ema(df["Close"], length=26)
+    df["macd"]    = ta.macd(df["Close"])["MACD_12_26_9"]
+    df["macd_sig"]= ta.macd(df["Close"])["MACDs_12_26_9"]
 
     # Momentum
-    df["rsi"]     = ta.momentum.rsi(df["Close"], window=14)
+    df["rsi"]     = ta.rsi(df["Close"], length=14)
 
     # Volatility
     bb = ta.volatility.BollingerBands(df["Close"], window=20)
@@ -53,7 +53,7 @@ def add_features(df: pd.DataFrame) -> pd.DataFrame:
     # Volume
     df["vwap"]    = (df["Volume"] * (df["High"] + df["Low"] + df["Close"]) / 3
                      ).cumsum() / df["Volume"].cumsum()
-    df["obv"]     = ta.volume.on_balance_volume(df["Close"], df["Volume"])
+    df["obv"]     = ta.obv(df["Close"], df["Volume"])
 
     # Returns
     df["ret_1d"]  = df["Close"].pct_change(1)
