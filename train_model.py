@@ -11,8 +11,8 @@ Reward:   portfolio return at each step minus transaction cost
 import os
 import numpy as np
 import pandas as pd
-import gymnasium as gym
-from gymnasium import spaces
+import gym
+from gym import spaces
 from stable_baselines3 import PPO
 from stable_baselines3.common.vec_env import DummyVecEnv
 from config import CONFIG
