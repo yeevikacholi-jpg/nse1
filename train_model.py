@@ -1,7 +1,7 @@
 """
 Step 5 — Model Building
 ========================
-Defines a Gymnasium trading environment and trains a PPO agent
+Defines a Gym trading environment and trains a PPO agent
 (stable-baselines3) to generate BUY / HOLD / SELL signals.
 
 Actions:  0 = HOLD, 1 = BUY, 2 = SELL
