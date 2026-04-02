@@ -11,8 +11,8 @@ Reward:   portfolio return at each step minus transaction cost
 import os
 import numpy as np
 import pandas as pd
-import gym
-from gym import spaces
+import gymnasium as gym
+from gymnasium import spaces
 from stable_baselines3 import PPO
 from stable_baselines3.common.vec_env import DummyVecEnv
 from config import CONFIG
@@ -68,7 +68,7 @@ class TradingEnv(gym.Env):
     def reset(self, *, seed=None, options=None):
         super().reset(seed=seed)
         self._reset_state()
-        return self._get_obs()
+        return self._get_obs(), {}
 
     def step(self, action):
         price = self.df.loc[self.idx, "Close"]
@@ -88,9 +88,11 @@ class TradingEnv(gym.Env):
         self.prev_port = self.portfolio
 
         self.idx += 1
-        done = self.idx >= self.n - 1
+        terminated = self.idx >= self.n - 1
+        truncated = False
+        obs = self._get_obs()
 
-        return self._get_obs(), float(reward), done, {}
+        return obs, float(reward), terminated, truncated, {}
 
 
 # ── Train ─────────────────────────────────────────────────────────────────────
