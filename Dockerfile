@@ -30,7 +30,7 @@ EXPOSE 5000
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=30s --start-period=5s --retries=3 \
-    CMD curl -f http://localhost:5000/ || exit 1
+    CMD python -c "import requests; requests.get('http://localhost:5000/', timeout=10)" || exit 1
 
 # Start the application
 CMD ["gunicorn", "--bind", "0.0.0.0:5000", "app:app"]
