@@ -45,10 +45,10 @@ def add_features(df: pd.DataFrame) -> pd.DataFrame:
     df["rsi"]     = ta.rsi(df["Close"], length=14)
 
     # Volatility
-    bb = ta.volatility.BollingerBands(df["Close"], window=20)
-    df["bb_upper"]= bb.bollinger_hband()
-    df["bb_lower"]= bb.bollinger_lband()
-    df["bb_width"]= (df["bb_upper"] - df["bb_lower"]) / df["Close"]
+    bb = ta.bbands(df["Close"], length=20)
+    df["bb_upper"] = bb["BBU_20_2.0"]
+    df["bb_lower"] = bb["BBL_20_2.0"]
+    df["bb_width"] = (bb["BBU_20_2.0"] - bb["BBL_20_2.0"]) / bb["BBM_20_2.0"]
 
     # Volume
     df["vwap"]    = (df["Volume"] * (df["High"] + df["Low"] + df["Close"]) / 3
