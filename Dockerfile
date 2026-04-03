@@ -1,4 +1,4 @@
-# Use Python 3.10 slim image for smaller size
+# Use Python 3.10 (stable for ML libs)
 FROM python:3.10-slim
 
 # Set working directory
@@ -11,26 +11,30 @@ RUN apt-get update && apt-get install -y \
     curl \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy requirements first for better caching
+# Copy requirements first (for caching)
 COPY requirements.txt .
+
+# 🔥 IMPORTANT FIX (your error fix)
+RUN pip install --upgrade pip setuptools wheel
 
 # Install Python dependencies
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy the rest of the application
+# Copy project files
 COPY . .
 
-# Create non-root user for security
+# Create non-root user
 RUN useradd --create-home --shell /bin/bash app \
     && chown -R app:app /app
+
 USER app
 
 # Expose port
 EXPOSE 5000
 
-# Health check
-HEALTHCHECK --interval=30s --timeout=30s --start-period=5s --retries=3 \
-    CMD python -c "import requests; requests.get('http://localhost:5000/', timeout=10)" || exit 1
+# Health check (fixed timeout)
+HEALTHCHECK --interval=30s --timeout=10s --start-period=10s --retries=3 \
+    CMD curl -f http://localhost:5000/ || exit 1
 
-# Start the application
+# Start app
 CMD ["gunicorn", "--bind", "0.0.0.0:5000", "app:app"]
