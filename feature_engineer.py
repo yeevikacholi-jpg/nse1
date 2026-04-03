@@ -9,7 +9,7 @@ import pandas as pd
 import numpy as np
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
-import pandas_ta as ta
+import ta
 from config import CONFIG
 
 
@@ -20,9 +20,7 @@ def clean_data(df: pd.DataFrame) -> pd.DataFrame:
     df["Date"] = pd.to_datetime(df["Date"])
     df = df.sort_values("Date").reset_index(drop=True)
     df = df.dropna()
-    # Remove zero-price rows
     df = df[(df["Close"] > 0) & (df["Volume"] > 0)]
-    # Forward-fill any remaining gaps
     df = df.ffill()
     print(f"[feature_engineer] Clean rows: {len(df)}")
     return df
@@ -34,33 +32,39 @@ def add_features(df: pd.DataFrame) -> pd.DataFrame:
     df = df.copy()
 
     # Trend indicators
-    df["sma_10"]  = ta.sma(df["Close"], length=10)
-    df["sma_30"]  = ta.sma(df["Close"], length=30)
-    df["ema_12"]  = ta.ema(df["Close"], length=12)
-    df["ema_26"]  = ta.ema(df["Close"], length=26)
-    df["macd"]    = ta.macd(df["Close"])["MACD_12_26_9"]
-    df["macd_sig"]= ta.macd(df["Close"])["MACDs_12_26_9"]
+    df["sma_10"] = ta.trend.SMAIndicator(df["Close"], window=10).sma_indicator()
+    df["sma_30"] = ta.trend.SMAIndicator(df["Close"], window=30).sma_indicator()
+
+    df["ema_12"] = ta.trend.EMAIndicator(df["Close"], window=12).ema_indicator()
+    df["ema_26"] = ta.trend.EMAIndicator(df["Close"], window=26).ema_indicator()
+
+    macd = ta.trend.MACD(df["Close"])
+    df["macd"] = macd.macd()
+    df["macd_sig"] = macd.macd_signal()
 
     # Momentum
-    df["rsi"]     = ta.rsi(df["Close"], length=14)
+    rsi = ta.momentum.RSIIndicator(df["Close"], window=14)
+    df["rsi"] = rsi.rsi()
 
-    # Volatility
-    bb = ta.bbands(df["Close"], length=20)
-    df["bb_upper"] = bb["BBU_20_2.0"]
-    df["bb_lower"] = bb["BBL_20_2.0"]
-    df["bb_width"] = (bb["BBU_20_2.0"] - bb["BBL_20_2.0"]) / bb["BBM_20_2.0"]
+    # Volatility (Bollinger Bands)
+    bb = ta.volatility.BollingerBands(df["Close"], window=20, window_dev=2)
+    df["bb_upper"] = bb.bollinger_hband()
+    df["bb_lower"] = bb.bollinger_lband()
+    df["bb_width"] = (bb.bollinger_hband() - bb.bollinger_lband()) / bb.bollinger_mavg()
 
-    # Volume
-    df["vwap"]    = (df["Volume"] * (df["High"] + df["Low"] + df["Close"]) / 3
-                     ).cumsum() / df["Volume"].cumsum()
-    df["obv"]     = ta.obv(df["Close"], df["Volume"])
+    # Volume indicators
+    obv = ta.volume.OnBalanceVolumeIndicator(df["Close"], df["Volume"])
+    df["obv"] = obv.on_balance_volume()
+
+    # VWAP (manual)
+    df["vwap"] = (df["Volume"] * (df["High"] + df["Low"] + df["Close"]) / 3).cumsum() / df["Volume"].cumsum()
 
     # Returns
-    df["ret_1d"]  = df["Close"].pct_change(1)
-    df["ret_5d"]  = df["Close"].pct_change(5)
+    df["ret_1d"] = df["Close"].pct_change(1)
+    df["ret_5d"] = df["Close"].pct_change(5)
 
-    # Target: 1 if next-day return > 0 else 0
-    df["target"]  = (df["Close"].shift(-1) > df["Close"]).astype(int)
+    # Target
+    df["target"] = (df["Close"].shift(-1) > df["Close"]).astype(int)
 
     df = df.dropna()
     return df
@@ -91,55 +95,71 @@ def plot_charts(df: pd.DataFrame, ticker: str) -> None:
     for col, color, name in [
         ("bb_upper", "rgba(255,100,100,0.4)", "BB Upper"),
         ("bb_lower", "rgba(100,100,255,0.4)", "BB Lower"),
-        ("sma_30",   "orange",                "SMA 30"),
-        ("vwap",     "green",                 "VWAP"),
+        ("sma_30", "orange", "SMA 30"),
+        ("vwap", "green", "VWAP"),
     ]:
         fig.add_trace(go.Scatter(
-            x=df["Date"], y=df[col], line=dict(color=color, width=1),
+            x=df["Date"], y=df[col],
+            line=dict(color=color, width=1),
             name=name,
         ), row=1, col=1)
 
     # Volume
     colors = ["#ef5350" if o > c else "#26a69a"
               for o, c in zip(df["Open"], df["Close"])]
+
     fig.add_trace(go.Bar(
-        x=df["Date"], y=df["Volume"], marker_color=colors, name="Volume",
+        x=df["Date"], y=df["Volume"],
+        marker_color=colors,
+        name="Volume",
     ), row=2, col=1)
 
     # RSI
     fig.add_trace(go.Scatter(
-        x=df["Date"], y=df["rsi"], line=dict(color="purple", width=1.2),
+        x=df["Date"], y=df["rsi"],
+        line=dict(color="purple", width=1.2),
         name="RSI",
     ), row=3, col=1)
-    for level, color in [(70, "red"), (30, "green")]:
-        fig.add_hline(y=level, line_dash="dash", line_color=color, row=3, col=1)
+
+    fig.add_hline(y=70, line_dash="dash", line_color="red", row=3, col=1)
+    fig.add_hline(y=30, line_dash="dash", line_color="green", row=3, col=1)
 
     # MACD
     fig.add_trace(go.Scatter(
-        x=df["Date"], y=df["macd"], line=dict(color="blue", width=1), name="MACD",
+        x=df["Date"], y=df["macd"],
+        line=dict(color="blue", width=1),
+        name="MACD",
     ), row=4, col=1)
+
     fig.add_trace(go.Scatter(
-        x=df["Date"], y=df["macd_sig"], line=dict(color="orange", width=1), name="Signal",
+        x=df["Date"], y=df["macd_sig"],
+        line=dict(color="orange", width=1),
+        name="Signal",
     ), row=4, col=1)
 
     fig.update_layout(
-        height=800, title=f"{ticker} — Technical Analysis",
+        height=800,
+        title=f"{ticker} — Technical Analysis",
         xaxis_rangeslider_visible=False,
         template="plotly_white",
         legend=dict(orientation="h", y=1.02),
     )
 
     fig.write_html("data/chart.html")
-    print("[visualise] Chart saved to data/chart.html  — open in a browser.")
+    print("[visualise] Chart saved to data/chart.html")
 
+
+# ── Run Pipeline ─────────────────────────────────────────────────────────────
 
 def run_feature_engineering() -> pd.DataFrame:
-    df_raw   = pd.read_csv(CONFIG["data_path"])
+    df_raw = pd.read_csv(CONFIG["data_path"])
     df_clean = clean_data(df_raw)
-    df_feat  = add_features(df_clean)
+    df_feat = add_features(df_clean)
+
     df_feat.to_csv("data/features.csv", index=False)
     plot_charts(df_feat, CONFIG["ticker"])
-    print(df_feat[["Date","Close","rsi","macd","target"]].tail())
+
+    print(df_feat[["Date", "Close", "rsi", "macd", "target"]].tail())
     return df_feat
 
 
